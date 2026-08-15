@@ -1,12 +1,12 @@
-const CACHE_NAME = 'canteen-ledger-v2';
+const CACHE_NAME = 'canteen-ledger-v1';
 const APP_SHELL = [
   './',
   './index.html',
   './style.css',
   './app.js',
   './manifest.json',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
+  './icon-192.png',
+  './icon-512.png',
   'https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js'
 ];
 
