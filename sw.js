@@ -1,4 +1,4 @@
-const CACHE_NAME = 'canteen-ledger-v1';
+const CACHE_NAME = 'canteen-ledger-v2';
 const APP_SHELL = [
   './',
   './index.html',
@@ -26,23 +26,21 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// App-shell files: cache-first (instant load, works offline).
-// Anything else (the Apps Script API calls): network-only — this is live
-// data, the app's own JS layer handles offline queueing for those, not this
-// service worker.
+// App-shell files: NETWORK-FIRST — always try to fetch the latest version
+// first, so future code updates actually show up next time the app opens
+// with a connection. Falls back to the cached copy only when offline.
+// (An earlier cache-first version of this file caused updates to get
+// stuck on old cached code — this avoids that happening again.)
 self.addEventListener('fetch', (event) => {
   const url = event.request.url;
   const isShellRequest = APP_SHELL.some((p) => url.endsWith(p.replace('./', '')));
   if (event.request.method !== 'GET' || !isShellRequest) return; // let it hit the network normally
 
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request).then((resp) => {
-        const copy = resp.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-        return resp;
-      });
-    })
+    fetch(event.request).then((resp) => {
+      const copy = resp.clone();
+      caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+      return resp;
+    }).catch(() => caches.match(event.request))
   );
 });
