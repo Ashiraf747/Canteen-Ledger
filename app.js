@@ -2,7 +2,7 @@
 
 // ⚠️ EDIT THIS — paste your own Apps Script Web App URL here (the one
 // ending in /exec, from Deploy → Manage deployments).
-const APPS_SCRIPT_URL = 'https://script.google.com/https://script.google.com/macros/s/AKfycbwlgcN7G_7Idu2lsa3NIrsmSR2AobOdt2AEHfnCbxAVp65aOUUfhLB4HTrMfWFp7LBK/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwlgcN7G_7Idu2lsa3NIrsmSR2AobOdt2AEHfnCbxAVp65aOUUfhLB4HTrMfWFp7LBK/exec';
 
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=> navigator.serviceWorker.register('sw.js').catch(()=>{}));
@@ -858,7 +858,7 @@ async function init(){
       setNetStatus('offline','Offline — showing data saved on this device');
     } else {
       setNetStatus('offline','No connection yet — open once with internet to set up this device');
-      $('mainLoading').textContent = 'No internet connection yet. Open this page once with Wi-Fi or data to set up this device, then it will work offline.';
+      $('mainLoading').textContent = 'Could not load your data yet. Details: ' + (err && err.message ? err.message : String(err)) + '. If this keeps happening on a strong Wi-Fi connection, this text (not the "no internet" wording) is what to send back for troubleshooting.';
     }
   }
 
