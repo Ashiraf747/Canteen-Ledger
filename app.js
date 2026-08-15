@@ -859,13 +859,23 @@ function checkPin(){
   const unlocked = sessionStorage.getItem('cl_pin_ok') === String(pin);
   if(unlocked) return true;
   $('pinGate').style.display = 'flex';
-  $('pinSubmit').addEventListener('click', ()=>{
+
+  function tryUnlock(){
     if($('pinInput').value === String(pin)){
       sessionStorage.setItem('cl_pin_ok', String(pin));
       $('pinGate').style.display = 'none';
-    } else {
-      $('pinError').textContent = 'Incorrect PIN.';
+      return true;
     }
+    return false;
+  }
+  // auto-unlocks the moment the correct PIN is typed — no button tap needed
+  $('pinInput').addEventListener('input', ()=>{
+    $('pinError').textContent = '';
+    if($('pinInput').value.length >= String(pin).length) tryUnlock();
+  });
+  // button stays as a fallback (e.g. pasted PINs, accessibility)
+  $('pinSubmit').addEventListener('click', ()=>{
+    if(!tryUnlock()) $('pinError').textContent = 'Incorrect PIN.';
   });
   return false;
 }
