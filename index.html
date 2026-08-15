@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="style.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1B2B22">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<div id="pinGate" class="pin-gate" style="display:none;">
+  <div class="eyebrow" style="letter-spacing:.14em; text-transform:uppercase; color:var(--amber-dim); font-size:12px;">School Canteen</div>
+  <h1 style="font-family:Georgia,serif; margin:0;">Canteen Ledger</h1>
+  <p style="font-size:13px; color:#C9D3C7; max-width:280px;">Enter the staff PIN to continue.</p>
+  <input type="password" id="pinInput" inputmode="numeric" placeholder="••••">
+  <button class="btn" style="background:var(--amber); color:#2A1D08; padding:12px 28px;" id="pinSubmit">Enter</button>
+  <div class="hint" id="pinError" style="color:#F3D9D2;"></div>
+</div>
+
+<header class="top">
+  <div class="toprow">
+    <div>
+      <div class="eyebrow">School Canteen</div>
+      <h1>Canteen Ledger</h1>
+      <div class="sub" id="headerSub">Loading your stock room…</div>
+    </div>
+    <div class="datebox">
+      <div class="day" id="dayName">—</div>
+      <div class="date" id="dateFull">—</div>
+    </div>
+  </div>
+  <div class="netstatus" id="netStatus"><span class="dot"></span><span id="netStatusText">Checking connection…</span></div>
+  <span class="fontctrl">
+    <button id="fontMinus" title="Smaller text">A−</button>
+    <button id="fontPlus" title="Larger text">A+</button>
+  </span>
+  <div class="divider"></div>
+</header>
+
+<nav class="tabs">
+  <button data-view="dashboard" class="active">📋 Today</button>
+  <button data-view="entry">✏️ Stock Entry</button>
+  <button data-view="catalog">📦 Catalog</button>
+  <button data-view="finance">💰 Finance</button>
+  <button data-view="charts">📊 Charts</button>
+  <button data-view="rules">⚙️ Rules</button>
+  <button data-view="history">🕓 History</button>
+</nav>
+
+<main id="mainLoading" class="loading">Setting up your ledger…</main>
+
+<main id="mainApp" style="display:none;">
+
+  <!-- DASHBOARD -->
+  <section class="view active" id="view-dashboard">
+    <div class="tally">
+      <div>
+        <div class="tlabel">Customers today</div>
+        <div class="tvalue num" id="tallyValue">0</div>
+      </div>
+      <div class="tbuttons">
+        <button class="minus" id="tallyMinus">−</button>
+        <button class="plus" id="tallyPlus">+1</button>
+      </div>
+    </div>
+
+    <h2 class="section-title">⏰ Check-in schedule</h2>
+    <div id="listCheckin"></div>
+
+    <div class="grid2" style="margin-bottom:6px;">
+      <div class="stat"><div class="label">Stock value on hand</div><div class="value num" id="statStockValue">—</div></div>
+      <div class="stat"><div class="label">Today's revenue</div><div class="value num" id="statRevenue">—</div></div>
+    </div>
+    <div class="grid2" style="margin-bottom:6px;">
+      <div class="stat"><div class="label">Net business position</div><div class="value num" id="statNet">—</div></div>
+      <div class="stat"><div class="label">Owed (credit + loans)</div><div class="value num neg" id="statOwed">—</div></div>
+    </div>
+
+    <h2 class="section-title">🔴 Expiring soon <span class="count" id="cntExpiring">0</span></h2>
+    <div id="listExpiring"></div>
+
+    <h2 class="section-title">📉 Out of stock / low <span class="count" id="cntLow">0</span></h2>
+    <div id="listLow"></div>
+
+    <h2 class="section-title">🛒 Restock now <span class="count" id="cntRestock">0</span></h2>
+    <div id="listRestock"></div>
+
+    <h2 class="section-title">⚠️ Unusual sales <span class="count" id="cntUnusual">0</span></h2>
+    <div id="listUnusual"></div>
+
+    <h2 class="section-title">🏃 Fast movers</h2>
+    <div id="listFast"></div>
+
+    <h2 class="section-title">🐌 Slow movers</h2>
+    <div id="listSlow"></div>
+  </section>
+
+  <!-- ADD ENTRY -->
+  <section class="view" id="view-entry">
+    <div class="card">
+      <label>Your name <span class="opt">(remembered on this device)</span></label>
+      <input type="text" id="staffName" placeholder="e.g. Aidah">
+
+      <label>Date</label>
+      <input type="date" id="fDate">
+
+      <label>Item</label>
+      <select id="fItem"></select>
+
+      <div class="field-row">
+        <div>
+          <label>Opening stock</label>
+          <input type="number" id="fOpening" class="num-in" min="0" value="0">
+        </div>
+        <div>
+          <label>&nbsp;</label>
+          <button class="btn ghost small" style="width:100%; padding:11px;" id="btnAutoOpen">Use last closing</button>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div>
+          <label>Qty purchased / prepared</label>
+          <input type="number" id="fPurchased" class="num-in" min="0" value="0">
+        </div>
+        <div>
+          <label>Cost per unit today</label>
+          <input type="number" id="fCost" class="num-in" min="0" placeholder="e.g. 1000">
+        </div>
+      </div>
+
+      <label>Paid by</label>
+      <div class="pill-choice" id="payMethod">
+        <button data-val="Cash" class="active">Cash</button>
+        <button data-val="Credit">Credit</button>
+        <button data-val="Grant">Grant</button>
+      </div>
+      <input type="text" id="fCounterparty" placeholder="Supplier / source name (optional)" style="margin-top:8px;">
+
+      <label>Expiry date <span class="opt">(leave blank if not perishable)</span></label>
+      <input type="date" id="fExpiry">
+
+      <label>Qty sold today</label>
+      <input type="number" id="fSold" class="num-in" min="0" value="0">
+
+      <div class="preview" id="entryPreview"></div>
+
+      <button class="btn primary" id="btnSaveEntry">Save today's entry</button>
+      <div class="hint" id="entryHint"></div>
+    </div>
+  </section>
+
+  <!-- CATALOG -->
+  <section class="view" id="view-catalog">
+    <div class="card">
+      <h2 class="section-title" style="margin-top:0;">Add new item</h2>
+      <div class="field-row">
+        <div>
+          <label>Category</label>
+          <select id="newCat">
+            <option>Eats</option><option>Drinks</option><option>Stationary</option>
+            <option>Sanitory</option><option>Cutlery</option><option>Others</option>
+          </select>
+        </div>
+        <div>
+          <label>Unit</label>
+          <input type="text" id="newUnit" placeholder="pcs">
+        </div>
+      </div>
+      <label>Item name</label>
+      <input type="text" id="newName" placeholder="e.g. Mandazi">
+      <button class="btn ghost small" style="margin-top:10px;" id="btnAddItem">+ Add to catalogue</button>
+    </div>
+
+    <input class="search" type="text" id="catSearch" placeholder="Search items…">
+    <table class="data">
+      <thead><tr><th>Item</th><th>Cat.</th><th>Unit</th><th>Cost</th><th>Sells at</th><th></th></tr></thead>
+      <tbody id="catalogBody"></tbody>
+    </table>
+  </section>
+
+  <!-- FINANCE -->
+  <section class="view" id="view-finance">
+    <div class="subtabs">
+      <button data-sub="overview" class="active">Overview</button>
+      <button data-sub="credit">Credit &amp; Loans</button>
+      <button data-sub="bills">Bills</button>
+      <button data-sub="assets">Assets</button>
+    </div>
+
+    <div class="fin-sub active" id="fin-overview">
+      <div class="grid2">
+        <div class="stat"><div class="label">Stock value</div><div class="value num" id="finStock">—</div></div>
+        <div class="stat"><div class="label">Assets value</div><div class="value num" id="finAssets">—</div></div>
+        <div class="stat"><div class="label">Credit + loans owed</div><div class="value num neg" id="finOwed">—</div></div>
+        <div class="stat"><div class="label">Unpaid bills</div><div class="value num neg" id="finBills">—</div></div>
+      </div>
+      <div class="card" style="margin-top:12px;">
+        <div class="stat" style="background:none; padding:0;">
+          <div class="label">Net business position</div>
+          <div class="value num" id="finNet" style="font-size:26px;">—</div>
+        </div>
+        <div class="hint">Stock value + assets value − credit/loans owed − unpaid bills. This doesn't include cash on hand, since that isn't tracked here yet.</div>
+      </div>
+    </div>
+
+    <div class="fin-sub" id="fin-credit" style="display:none;">
+      <div class="card">
+        <h2 class="section-title" style="margin-top:0;">Record a loan or repayment</h2>
+        <label>Type</label>
+        <div class="pill-choice" id="liabType">
+          <button data-val="Loan" class="active">Loan received</button>
+          <button data-val="Repayment">Repayment made</button>
+        </div>
+        <label>From / to</label>
+        <input type="text" id="liabParty" placeholder="e.g. Family, Supplier X">
+        <label>Amount</label>
+        <input type="number" id="liabAmount" class="num-in" min="0">
+        <label>Date</label>
+        <input type="date" id="liabDate">
+        <label>Note <span class="opt">(optional)</span></label>
+        <input type="text" id="liabNote">
+        <button class="btn ghost small" style="margin-top:10px;" id="btnAddLiability">Save</button>
+      </div>
+      <div id="liabList"></div>
+    </div>
+
+    <div class="fin-sub" id="fin-bills" style="display:none;">
+      <div class="card">
+        <h2 class="section-title" style="margin-top:0;">Add a pending bill</h2>
+        <label>Description</label>
+        <input type="text" id="billDesc" placeholder="e.g. Electricity, water">
+        <label>Amount</label>
+        <input type="number" id="billAmount" class="num-in" min="0">
+        <label>Due date</label>
+        <input type="date" id="billDue">
+        <button class="btn ghost small" style="margin-top:10px;" id="btnAddBill">Save</button>
+      </div>
+      <div id="billList"></div>
+    </div>
+
+    <div class="fin-sub" id="fin-assets" style="display:none;">
+      <div class="card">
+        <h2 class="section-title" style="margin-top:0;">Add a business asset</h2>
+        <label>Name</label>
+        <input type="text" id="assetName" placeholder="e.g. Deep freezer">
+        <label>Category</label>
+        <input type="text" id="assetCat" placeholder="e.g. Appliance, Furniture">
+        <label>Value</label>
+        <input type="number" id="assetValue" class="num-in" min="0">
+        <label>Date acquired</label>
+        <input type="date" id="assetDate">
+        <button class="btn ghost small" style="margin-top:10px;" id="btnAddAsset">Save</button>
+      </div>
+      <div id="assetList"></div>
+    </div>
+  </section>
+
+  <!-- CHARTS -->
+  <section class="view" id="view-charts">
+    <div class="chart-wrap"><h3>Revenue — last 14 days</h3><canvas id="chartRevenue"></canvas></div>
+    <div class="chart-wrap"><h3>Stock value by category</h3><canvas id="chartCategory"></canvas></div>
+    <div class="chart-wrap"><h3>Top 8 sellers (avg units/day)</h3><canvas id="chartTop"></canvas></div>
+  </section>
+
+  <!-- RULES -->
+  <section class="view" id="view-rules">
+    <div class="card">
+      <h2 class="section-title" style="margin-top:0;">Pricing formula</h2>
+      <div class="hint" style="margin-bottom:8px;">Selling Price = ((Cost × (1 + Overhead% + Wastage%)) + Packaging) ÷ (1 − Margin%), rounded up.</div>
+      <label>Overhead %</label><input type="number" id="rOverhead" class="num-in">
+      <label>Wastage / spoilage %</label><input type="number" id="rWastage" class="num-in">
+      <label>Packaging cost per item</label><input type="number" id="rPackaging" class="num-in">
+      <label>Target profit margin %</label><input type="number" id="rMargin" class="num-in">
+      <label>Round selling price up to nearest</label><input type="number" id="rRound" class="num-in">
+    </div>
+    <div class="card">
+      <h2 class="section-title" style="margin-top:0;">Alerts &amp; reorder</h2>
+      <label>Warn when expiring within (days)</label><input type="number" id="rExpiryWindow" class="num-in">
+      <label>Warn when stock covers fewer than (days)</label><input type="number" id="rReorderDays" class="num-in">
+      <label>Restock buffer (extra days of cover)</label><input type="number" id="rBufferDays" class="num-in">
+      <label>Flag sales as unusual if off by more than (%)</label><input type="number" id="rUnusualPct" class="num-in">
+    </div>
+    <div class="card">
+      <h2 class="section-title" style="margin-top:0;">Check-in schedule</h2>
+      <div class="hint" style="margin-bottom:8px;">Format: HH:MM-HH:MM, 24-hour clock.</div>
+      <label>Morning stock-in</label><input type="text" id="rCkMorning" placeholder="06:00-10:00">
+      <label>Break-time sales</label><input type="text" id="rCkBreak" placeholder="11:00-12:30">
+      <label>Lunch-time sales</label><input type="text" id="rCkLunch" placeholder="13:30-15:30">
+      <label>Evening wrap-up</label><input type="text" id="rCkEvening" placeholder="20:30-22:00">
+      <label style="display:flex; align-items:center; gap:8px; margin-top:14px;">
+        <input type="checkbox" id="rNotifyToggle" style="width:auto;">
+        <span>Try phone notifications for check-ins</span>
+      </label>
+      <div class="hint">Only fires while this tab is open (even in the background) — not if the browser is fully closed. This preference is saved on this device only.</div>
+    </div>
+    <div class="card">
+      <h2 class="section-title" style="margin-top:0;">Access</h2>
+      <label>Staff PIN <span class="opt">(leave blank to disable)</span></label>
+      <input type="text" id="rPin" inputmode="numeric" placeholder="e.g. 2468">
+      <div class="hint">This is a light deterrent, not real security — anyone who inspects the page can bypass it.</div>
+    </div>
+    <div class="card">
+      <h2 class="section-title" style="margin-top:0;">Backups</h2>
+      <label>Monthly backup email</label>
+      <input type="email" id="rBackupEmail" placeholder="you@example.com">
+      <div class="hint">A full .xlsx copy of the Sheet is emailed here on the 1st of every month, automatically — once the one-time trigger is set up in Apps Script (see SETUP_GUIDE.md). Leave blank to send to the Sheet owner's own address.</div>
+    </div>
+    <button class="btn primary" id="btnSaveRules">Save settings</button>
+  </section>
+
+  <!-- HISTORY -->
+  <section class="view" id="view-history">
+    <input class="search" type="text" id="histSearch" placeholder="Search by item…">
+    <div id="historyList"></div>
+  </section>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
