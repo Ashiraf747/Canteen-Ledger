@@ -98,21 +98,65 @@ function setNetStatus(mode, text){
 
 // ---------------------------------------------------------------- RPC wrapper
 
+let jsonpCounter = 0;
+function jsonpRequest(fn){
+  return new Promise((resolve, reject)=>{
+    const cbName = 'cl_cb_' + (jsonpCounter++) + '_' + Date.now();
+    const script = document.createElement('script');
+    const timeout = setTimeout(()=>{ cleanup(); reject(new Error('Request timed out — check your connection')); }, 20000);
+    function cleanup(){
+      clearTimeout(timeout);
+      delete window[cbName];
+      if(script.parentNode) script.parentNode.removeChild(script);
+    }
+    window[cbName] = function(payload){
+      cleanup();
+      if(!payload.ok) reject(new Error(payload.result));
+      else resolve(payload.result);
+    };
+    script.onerror = ()=>{ cleanup(); reject(new Error('Could not reach the server (JSONP load failed)')); };
+    script.src = APPS_SCRIPT_URL + '?fn=' + encodeURIComponent(fn) + '&callback=' + cbName;
+    document.body.appendChild(script);
+  });
+}
+
+let iframeFormCounter = 0;
+function formPostRequest(fn, args){
+  return new Promise((resolve, reject)=>{
+    const frameName = 'cl_frame_' + (iframeFormCounter++) + '_' + Date.now();
+    const iframe = document.createElement('iframe');
+    iframe.name = frameName;
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = APPS_SCRIPT_URL;
+    form.target = frameName;
+    form.style.display = 'none';
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'payload';
+    input.value = JSON.stringify({ fn, args });
+    form.appendChild(input);
+    document.body.appendChild(form);
+
+    // A hidden-iframe form POST can't hand its response back to JS (that's
+    // exactly why it dodges CORS) — so we submit it, give it a moment to
+    // land, then re-fetch fresh data via JSONP as the source of truth.
+    iframe.onload = ()=>{
+      setTimeout(()=>{
+        form.remove(); iframe.remove();
+        jsonpRequest('getAllData').then(resolve).catch(reject);
+      }, 400);
+    };
+    form.submit();
+  });
+}
+
 function gsrun(fnName, ...args){
-  if(fnName === 'getAllData'){
-    return fetch(APPS_SCRIPT_URL + '?fn=getAllData')
-      .then(r=>r.json())
-      .then(j=>{ if(!j.ok) throw new Error(j.result); return j.result; });
-  }
-  // everything else (syncBatch) goes via POST as text/plain, deliberately —
-  // this avoids a CORS preflight that Apps Script can't answer.
-  return fetch(APPS_SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ fn: fnName, args })
-  })
-    .then(r=>r.json())
-    .then(j=>{ if(!j.ok) throw new Error(j.result); return j.result; });
+  if(fnName === 'getAllData') return jsonpRequest('getAllData');
+  return formPostRequest(fnName, args);
 }
 
 // ---------------------------------------------------------------- queue / sync
@@ -138,8 +182,9 @@ async function flushQueue(){
     const batch = queue.slice();
     const res = await gsrun('syncBatch', batch);
     // success: server has processed the batch, adopt fresh dataset
+    // (res is the fresh getAllData() payload itself — see formPostRequest)
     queue = queue.filter(q => !batch.find(b => b.clientId === q.clientId));
-    state = res.data;
+    state = res;
     saveLocal();
     setNetStatus('online', 'Online · synced');
     renderAll();
